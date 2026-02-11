@@ -1,5 +1,5 @@
 import React from "react";
-import { View, ActivityIndicator, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 interface LoaderProps {
   message?: string;
@@ -12,7 +12,7 @@ const Loader: React.FC<LoaderProps> = ({
 }) => (
   <View style={styles.overlay}>
     <ActivityIndicator size="large" color={color} />
-    <Text style={styles.text}>{message}</Text>
+    <Text style={[styles.text, { color }]}>{message}</Text>
   </View>
 );
 
@@ -32,7 +32,6 @@ const styles = StyleSheet.create({
   text: {
     marginTop: 16,
     fontSize: 16,
-    color: "#007BFF",
     fontWeight: "bold",
   },
 });

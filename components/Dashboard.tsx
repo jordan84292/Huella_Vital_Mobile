@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Alert } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import React, { useEffect, useState } from "react";
+import { Alert, StatusBar, StyleSheet } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { axiosApi } from "../app/axiosApi/axiosApi";
-import Loader from "./Loader";
-import ClientInfo from "./ClientInfo";
-import PatientsList from "./PatientsList";
-import PatientDetail from "./PatientDetail";
-import PatientTimeline from "./PatientTimeline";
+import { useTheme } from "../contexts/ThemeContext";
 import AppointmentBooking from "./AppointmentBooking";
+import Loader from "./Loader";
+import PatientDetail from "./PatientDetail";
+import PatientsList from "./PatientsList";
+import PatientTimeline from "./PatientTimeline";
+import UserInfo from "./UserInfo";
 
 interface User {
   id: number;
@@ -48,9 +50,15 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userStats, setUserStats] = useState({
+    totalPatients: 0,
+    totalAppointments: 0,
+    upcomingAppointments: 0,
+  });
   const [navigation, setNavigation] = useState<NavigationState>({
     screen: "patients",
   });
+  const { themeColor } = useTheme();
 
   useEffect(() => {
     loadUserData();
@@ -59,6 +67,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
   useEffect(() => {
     if (user) {
       checkTodayAppointments();
+      loadUserStats();
     }
   }, [user]);
 
@@ -72,7 +81,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       const client = clients.find((c: any) => c.email === user.email);
 
       if (!client) {
-        console.log("No se encontró cliente para este usuario");
         return;
       }
 
@@ -84,7 +92,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       );
 
       if (userPatients.length === 0) {
-        console.log("No se encontraron pacientes para este cliente");
         return;
       }
 
@@ -94,11 +101,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       const month = String(today.getMonth() + 1).padStart(2, "0");
       const day = String(today.getDate()).padStart(2, "0");
       const todayStr = `${year}-${month}-${day}`;
-      console.log("Fecha de hoy (local):", todayStr);
-      console.log(
-        "Zona horaria:",
-        Intl.DateTimeFormat().resolvedOptions().timeZone,
-      );
 
       let todayAppointments: any[] = [];
 
@@ -109,17 +111,11 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             `/appointments/patient/${patient.id}`,
           );
           const appointments = appointmentsResponse.data.data || [];
-          console.log(
-            `Citas del paciente ${patient.name}:`,
-            appointments.length,
-          );
 
           // Filtrar citas de hoy que estén programadas
           const todayApts = appointments.filter((apt: any) => {
             const aptDateStr = apt.date.split("T")[0]; // Extraer solo la fecha
-            console.log(
-              `Comparando: ${aptDateStr} === ${todayStr}, status: ${apt.status}`,
-            );
+
             return aptDateStr === todayStr && apt.status === "Programada";
           });
 
@@ -140,11 +136,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       }
 
       // Mostrar notificación si hay citas hoy
-      console.log(`Total de citas para hoy: ${todayAppointments.length}`);
 
       if (todayAppointments.length > 0) {
-        console.log("Mostrando alerta de citas");
-
         // Calcular tiempo restante para cada cita
         const appointmentsList = todayAppointments
           .map((apt) => {
@@ -235,7 +228,6 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         };
 
         await axiosApi.post("/clients", clientData);
-        console.log("Cliente creado automáticamente para el usuario");
       }
     } catch (error) {
       console.error("Error ensuring client exists:", error);
@@ -255,6 +247,70 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
       onLogout?.();
     } catch (error) {
       console.error("Error during logout:", error);
+    }
+  };
+
+  const loadUserStats = async () => {
+    try {
+      if (!user?.email) return;
+
+      // Obtener el cliente actual por email
+      const clientResponse = await axiosApi.get("/clients");
+      const clients = clientResponse.data.data || [];
+      const client = clients.find((c: any) => c.email === user.email);
+
+      if (!client) {
+        return;
+      }
+
+      // Obtener todos los pacientes del cliente
+      const patientsResponse = await axiosApi.get("/patients");
+      const allPatients = patientsResponse.data.data || [];
+      const userPatients = allPatients.filter(
+        (p: any) => String(p.cedula) === String(client.cedula),
+      );
+
+      let totalAppointments = 0;
+      let upcomingAppointments = 0;
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Resetear horas para comparar solo fechas
+
+      // Para cada paciente, obtener sus citas
+      for (const patient of userPatients) {
+        try {
+          const appointmentsResponse = await axiosApi.get(
+            `/appointments/patient/${patient.id}`,
+          );
+          const appointments = appointmentsResponse.data.data || [];
+
+          // Contar todas las citas completadas
+          const completedAppointments = appointments.filter(
+            (apt: any) => apt.status === "Completada",
+          );
+          totalAppointments += completedAppointments.length;
+
+          // Contar citas futuras programadas
+          const upcoming = appointments.filter((apt: any) => {
+            const aptDate = new Date(apt.date);
+            aptDate.setHours(0, 0, 0, 0);
+            return aptDate >= now && apt.status === "Programada";
+          });
+          upcomingAppointments += upcoming.length;
+        } catch (error) {
+          console.error(
+            `Error loading appointments for patient ${patient.id}:`,
+            error,
+          );
+        }
+      }
+
+      setUserStats({
+        totalPatients: userPatients.length,
+        totalAppointments,
+        upcomingAppointments,
+      });
+    } catch (error) {
+      console.error("Error loading user stats:", error);
     }
   };
 
@@ -278,33 +334,33 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     setNavigation({ screen: "profile" });
   };
 
+  const handleViewProfile = () => {
+    setNavigation({ screen: "profile" });
+  };
+
   if (loading) {
-    return <Loader message="Cargando información..." />;
+    return <Loader message="Cargando información..." color={themeColor} />;
   }
 
   if (!user) {
-    return <Loader message="Error al cargar datos del usuario" />;
+    return (
+      <Loader message="Error al cargar datos del usuario" color={themeColor} />
+    );
   }
 
   const renderCurrentScreen = () => {
     switch (navigation.screen) {
       case "profile":
         return (
-          <ClientInfo
-            client={{
-              cedula: user.id.toString(),
-              name: user.nombre,
-              email: user.email,
-              phone: user.telefono,
-              address: "No especificada",
-              city: "No especificada",
-              registrationdate: user.fecha_creacion,
-              status: "active",
+          <UserInfo
+            user={user}
+            stats={{
+              totalPatients: userStats.totalPatients,
+              totalAppointments: userStats.totalAppointments,
+              upcomingAppointments: userStats.upcomingAppointments,
+              memberSince: user.fecha_creacion,
             }}
-            onEditProfile={() => {
-              // TODO: Implement edit profile
-              console.log("Edit profile");
-            }}
+            onBack={handleBackToPatients}
             onLogout={handleLogout}
           />
         );
@@ -314,7 +370,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           <PatientsList
             userId={user.id.toString()}
             onPatientSelect={handlePatientSelect}
+            onViewProfile={handleViewProfile}
             onLogout={handleLogout}
+            themeColor={themeColor}
           />
         );
 
@@ -323,12 +381,9 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           <PatientDetail
             patient={navigation.patient}
             onBack={handleBackToPatients}
-            onEdit={() => {
-              // TODO: Implement edit patient
-              console.log("Edit patient");
-            }}
             onBookAppointment={() => handleBookAppointment(navigation.patient)}
             onViewHistory={() => handleViewHistory(navigation.patient)}
+            themeColor={themeColor}
           />
         );
 
@@ -337,6 +392,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
           <PatientTimeline
             patientId={navigation.patient.id}
             onBack={handleBackToPatients}
+            themeColor={themeColor}
           />
         );
 
@@ -346,6 +402,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             patient={navigation.patient}
             onBack={handleBackToPatients}
             onSuccess={handleBackToPatients}
+            themeColor={themeColor}
           />
         );
 
@@ -354,12 +411,18 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     }
   };
 
-  return <View style={styles.container}>{renderCurrentScreen()}</View>;
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#f8f9fa" />
+      {renderCurrentScreen()}
+    </SafeAreaView>
+  );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#f8f9fa",
   },
 });
 

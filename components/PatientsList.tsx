@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  Linking,
-  SafeAreaView,
-  StatusBar,
-  Platform,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import {
+  FlatList,
+  Linking,
+  RefreshControl,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { axiosApi } from "../app/axiosApi/axiosApi";
 import Loader from "./Loader";
 
@@ -33,14 +32,18 @@ interface PatientsListProps {
   userId: string;
   onPatientSelect?: (patient: Patient) => void;
   onAddPatient?: () => void;
+  onViewProfile?: () => void;
   onLogout?: () => void;
+  themeColor?: string;
 }
 
 const PatientsList: React.FC<PatientsListProps> = ({
   userId,
   onPatientSelect,
   onAddPatient,
+  onViewProfile,
   onLogout,
+  themeColor = "#007BFF",
 }) => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +139,7 @@ const PatientsList: React.FC<PatientsListProps> = ({
         <Ionicons
           name={getSpeciesIcon(item.species)}
           size={30}
-          color="#007BFF"
+          color={themeColor}
         />
         <View style={styles.patientInfo}>
           <Text style={styles.patientName}>{item.name}</Text>
@@ -200,7 +203,7 @@ const PatientsList: React.FC<PatientsListProps> = ({
   );
 
   if (loading) {
-    return <Loader message="Cargando pacientes..." />;
+    return <Loader message="Cargando pacientes..." color={themeColor} />;
   }
 
   if (error) {
@@ -221,11 +224,21 @@ const PatientsList: React.FC<PatientsListProps> = ({
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Mis Mascotas</Text>
-          {onLogout && (
-            <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
-              <Ionicons name="log-out-outline" size={24} color="#dc3545" />
-            </TouchableOpacity>
-          )}
+          <View style={styles.headerActions}>
+            {onViewProfile && (
+              <TouchableOpacity
+                style={[styles.profileButton, { borderColor: themeColor }]}
+                onPress={onViewProfile}
+              >
+                <Ionicons name="person-outline" size={24} color={themeColor} />
+              </TouchableOpacity>
+            )}
+            {onLogout && (
+              <TouchableOpacity style={styles.logoutButton} onPress={onLogout}>
+                <Ionicons name="log-out-outline" size={24} color="#dc3545" />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         {patients.length === 0 ? (
@@ -239,8 +252,10 @@ const PatientsList: React.FC<PatientsListProps> = ({
               style={styles.contactInfo}
               onPress={handleCallClinic}
             >
-              <Ionicons name="call-outline" size={20} color="#007BFF" />
-              <Text style={styles.contactText}>Llama a la clínica</Text>
+              <Ionicons name="call-outline" size={20} color={themeColor} />
+              <Text style={[styles.contactText, { color: themeColor }]}>
+                Llama a la clínica
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -263,7 +278,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: "#f8f9fa",
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0,
   },
   container: {
     flex: 1,
@@ -278,6 +292,10 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 12,
   },
+  headerActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
   title: {
     fontSize: 24,
     fontWeight: "bold",
@@ -285,6 +303,21 @@ const styles = StyleSheet.create({
   },
   addButton: {
     padding: 8,
+  },
+  profileButton: {
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#007BFF",
+    shadowColor: "#007BFF",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   logoutButton: {
     padding: 10,
@@ -336,7 +369,6 @@ const styles = StyleSheet.create({
   },
   patientAge: {
     fontSize: 16,
-    color: "#007BFF",
     fontWeight: "700",
   },
   patientGender: {

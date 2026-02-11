@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { axiosApi } from "../app/axiosApi/axiosApi";
 
 interface Visit {
@@ -38,6 +41,7 @@ interface Vaccination {
 interface TimelineProps {
   patientId: number;
   onBack: () => void;
+  themeColor?: string;
 }
 
 type TimelineEvent = {
@@ -46,7 +50,11 @@ type TimelineEvent = {
   id: number;
 } & (Visit | Vaccination);
 
-const PatientTimeline: React.FC<TimelineProps> = ({ patientId, onBack }) => {
+const PatientTimeline: React.FC<TimelineProps> = ({
+  patientId,
+  onBack,
+  themeColor = "#007BFF",
+}) => {
   const [visits, setVisits] = useState<Visit[]>([]);
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([]);
   const [loading, setLoading] = useState(true);
@@ -122,186 +130,198 @@ const PatientTimeline: React.FC<TimelineProps> = ({ patientId, onBack }) => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Cargando historial médico...</Text>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={themeColor} />
+          <Text style={styles.loadingText}>Cargando historial médico...</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadTimelineData}>
-          <Text style={styles.retryButtonText}>Intentar de nuevo</Text>
-        </TouchableOpacity>
-      </View>
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: themeColor }]}
+            onPress={loadTimelineData}
+          >
+            <Text style={styles.retryButtonText}>Intentar de nuevo</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
     );
   }
 
   const timelineEvents = getTimelineEvents();
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>← Volver</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Línea de Tiempo Médica</Text>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={onBack}>
+            <Ionicons name="arrow-back" size={24} color={themeColor} />
+          </TouchableOpacity>
+          <Text style={styles.title}>Línea de Tiempo Médica</Text>
+        </View>
 
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.timeline}>
-          {timelineEvents.length > 0 ? (
-            timelineEvents.map((event, index) => (
-              <View
-                key={`${event.eventType}-${event.id}`}
-                style={styles.timelineItem}
-              >
-                <View style={styles.timelineLeft}>
-                  <View
-                    style={[
-                      styles.timelineDot,
-                      { backgroundColor: getEventTypeColor(event.eventType) },
-                    ]}
-                  />
-                  {index < timelineEvents.length - 1 && (
-                    <View style={styles.timelineLine} />
-                  )}
-                </View>
-
-                <View style={styles.timelineContent}>
-                  <View style={styles.dateContainer}>
-                    <Text style={styles.shortDate}>
-                      {formatShortDate(event.date)}
-                    </Text>
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.timeline}>
+            {timelineEvents.length > 0 ? (
+              timelineEvents.map((event, index) => (
+                <View
+                  key={`${event.eventType}-${event.id}`}
+                  style={styles.timelineItem}
+                >
+                  <View style={styles.timelineLeft}>
+                    <View
+                      style={[
+                        styles.timelineDot,
+                        { backgroundColor: getEventTypeColor(event.eventType) },
+                      ]}
+                    />
+                    {index < timelineEvents.length - 1 && (
+                      <View style={styles.timelineLine} />
+                    )}
                   </View>
 
-                  <View style={styles.eventCard}>
-                    <View style={styles.eventHeader}>
-                      <Text style={styles.eventTitle}>
-                        {event.eventType === "vaccination"
-                          ? (event as Vaccination).vaccine
-                          : (event as Visit).diagnosis}
+                  <View style={styles.timelineContent}>
+                    <View style={styles.dateContainer}>
+                      <Text style={styles.shortDate}>
+                        {formatShortDate(event.date)}
                       </Text>
-                      <View
-                        style={[
-                          styles.badge,
-                          {
-                            backgroundColor:
-                              event.eventType === "vaccination"
-                                ? "#dcfce7"
-                                : "#dbeafe",
-                          },
-                        ]}
-                      >
-                        <Text
+                    </View>
+
+                    <View style={styles.eventCard}>
+                      <View style={styles.eventHeader}>
+                        <Text style={styles.eventTitle}>
+                          {event.eventType === "vaccination"
+                            ? (event as Vaccination).vaccine
+                            : (event as Visit).diagnosis}
+                        </Text>
+                        <View
                           style={[
-                            styles.badgeText,
+                            styles.badge,
                             {
-                              color:
+                              backgroundColor:
                                 event.eventType === "vaccination"
-                                  ? "#166534"
-                                  : "#1e40af",
+                                  ? "#dcfce7"
+                                  : "#dbeafe",
                             },
                           ]}
                         >
-                          {event.eventType === "vaccination"
-                            ? "Vacunación"
-                            : getVisitTypeLabel((event as Visit).type)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.eventDetails}>
-                      <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Veterinario:</Text>
-                        <Text style={styles.detailValue}>
-                          {event.veterinarian}
-                        </Text>
-                      </View>
-
-                      {event.eventType === "visit" && (
-                        <>
-                          <View style={styles.detailRow}>
-                            <Text style={styles.detailLabel}>Tratamiento:</Text>
-                            <Text style={styles.detailValue}>
-                              {(event as Visit).treatment}
-                            </Text>
-                          </View>
-
-                          {(event as Visit).notes && (
-                            <View style={styles.notesContainer}>
-                              <Text style={styles.notesLabel}>Notas:</Text>
-                              <Text style={styles.notesText}>
-                                {(event as Visit).notes}
-                              </Text>
-                            </View>
-                          )}
-
-                          <View style={styles.costContainer}>
-                            <Text style={styles.costLabel}>
-                              Costo del servicio
-                            </Text>
-                            <Text style={styles.costValue}>
-                              ₡{Number((event as Visit).cost).toFixed(2)}
-                            </Text>
-                          </View>
-                        </>
-                      )}
-
-                      {event.eventType === "vaccination" && (
-                        <View style={styles.detailRow}>
-                          <Text style={styles.detailLabel}>Dosis:</Text>
-                          <Text style={styles.detailValue}>
-                            {(event as Vaccination).dosis}
+                          <Text
+                            style={[
+                              styles.badgeText,
+                              {
+                                color:
+                                  event.eventType === "vaccination"
+                                    ? "#166534"
+                                    : "#1e40af",
+                              },
+                            ]}
+                          >
+                            {event.eventType === "vaccination"
+                              ? "Vacunación"
+                              : getVisitTypeLabel((event as Visit).type)}
                           </Text>
                         </View>
-                      )}
+                      </View>
+
+                      <View style={styles.eventDetails}>
+                        <View style={styles.detailRow}>
+                          <Text style={styles.detailLabel}>Veterinario:</Text>
+                          <Text style={styles.detailValue}>
+                            {event.veterinarian}
+                          </Text>
+                        </View>
+
+                        {event.eventType === "visit" && (
+                          <>
+                            <View style={styles.detailRow}>
+                              <Text style={styles.detailLabel}>
+                                Tratamiento:
+                              </Text>
+                              <Text style={styles.detailValue}>
+                                {(event as Visit).treatment}
+                              </Text>
+                            </View>
+
+                            {(event as Visit).notes && (
+                              <View style={styles.notesContainer}>
+                                <Text style={styles.notesLabel}>Notas:</Text>
+                                <Text style={styles.notesText}>
+                                  {(event as Visit).notes}
+                                </Text>
+                              </View>
+                            )}
+
+                            <View style={styles.costContainer}>
+                              <Text style={styles.costLabel}>
+                                Costo del servicio
+                              </Text>
+                              <Text style={styles.costValue}>
+                                ₡{Number((event as Visit).cost).toFixed(2)}
+                              </Text>
+                            </View>
+                          </>
+                        )}
+
+                        {event.eventType === "vaccination" && (
+                          <View style={styles.detailRow}>
+                            <Text style={styles.detailLabel}>Dosis:</Text>
+                            <Text style={styles.detailValue}>
+                              {(event as Vaccination).dosis}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
                 </View>
+              ))
+            ) : (
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No hay eventos registrados</Text>
+                <Text style={styles.emptySubtext}>
+                  El historial médico aparecerá aquí cuando se registren visitas
+                  o vacunaciones
+                </Text>
               </View>
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No hay eventos registrados</Text>
-              <Text style={styles.emptySubtext}>
-                El historial médico aparecerá aquí cuando se registren visitas o
-                vacunaciones
-              </Text>
-            </View>
-          )}
-        </View>
-      </ScrollView>
-    </View>
+            )}
+          </View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+  },
   container: {
     flex: 1,
     backgroundColor: "#f8fafc",
   },
   header: {
     backgroundColor: "#ffffff",
-    paddingTop: 60,
+    paddingVertical: 20,
     paddingHorizontal: 20,
-    paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: "#e2e8f0",
   },
   backButton: {
     marginBottom: 10,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: "#007AFF",
-    fontWeight: "500",
   },
   title: {
     fontSize: 24,

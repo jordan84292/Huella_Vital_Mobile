@@ -1,23 +1,25 @@
-import React, { useState, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
+import React, { useEffect, useState } from "react";
 import {
-  View,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  Image,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
+  View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
-import { axiosApi } from "../axiosApi/axiosApi";
-import Loader from "../../components/Loader";
 import Dashboard from "../../components/Dashboard";
+import Loader from "../../components/Loader";
+import { ThemeProvider, useTheme } from "../../contexts/ThemeContext";
+import { axiosApi } from "../axiosApi/axiosApi";
 
-export default function HomeScreen() {
+function HomeScreenContent() {
+  const { themeColor } = useTheme();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState("");
@@ -222,7 +224,6 @@ export default function HomeScreen() {
 
           // Guardar token y datos del usuario en SecureStore
           await saveAuthData(token, userData);
-          console.log("Token recibido:", token);
 
           setIsAuthenticated(true);
         } else {
@@ -265,7 +266,7 @@ export default function HomeScreen() {
 
   // Show loading while checking authentication state
   if (loading) {
-    return <Loader message="Verificando autenticación..." />;
+    return <Loader message="Verificando autenticación..." color={themeColor} />;
   }
 
   // Show Dashboard if authenticated
@@ -305,6 +306,7 @@ export default function HomeScreen() {
             message={
               isRegister ? "Procesando registro..." : "Iniciando sesión..."
             }
+            color={themeColor}
           />
         ) : (
           <View style={styles.formContainer}>
@@ -508,6 +510,14 @@ export default function HomeScreen() {
         )}
       </ScrollView>
     </KeyboardAvoidingView>
+  );
+}
+
+export default function HomeScreen() {
+  return (
+    <ThemeProvider>
+      <HomeScreenContent />
+    </ThemeProvider>
   );
 }
 

@@ -1,13 +1,14 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { axiosApi } from "../app/axiosApi/axiosApi";
 
 interface Patient {
@@ -43,6 +44,7 @@ interface PatientDetailProps {
   onBookAppointment?: () => void;
   onViewHistory?: () => void;
   onBack?: () => void;
+  themeColor?: string;
 }
 
 const PatientDetail: React.FC<PatientDetailProps> = ({
@@ -51,9 +53,22 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   onBookAppointment,
   onViewHistory,
   onBack,
+  themeColor = "#007BFF",
 }) => {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loadingAppointments, setLoadingAppointments] = useState(true);
+
+  // Función para obtener el color del tipo de cita según importancia
+  const getAppointmentTypeColor = (type: string) => {
+    const typeColors: { [key: string]: string } = {
+      Emergencia: "#dc3545", // Rojo - Máxima prioridad
+      Cirugía: "#fd7e14", // Naranja - Alta prioridad
+      Consulta: "#007bff", // Azul - Prioridad media
+      Vacunación: "#28a745", // Verde - Prioridad normal
+      Control: "#6c757d", // Gris - Prioridad baja
+    };
+    return typeColors[type] || "#6c757d";
+  };
 
   useEffect(() => {
     loadAppointments();
@@ -64,7 +79,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       setLoadingAppointments(true);
 
       if (!patient?.id) {
-        console.log("No patient ID available");
         setAppointments([]);
         return;
       }
@@ -74,15 +88,11 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
       );
 
       if (!response.data || !response.data.data) {
-        console.log("No appointment data received");
         setAppointments([]);
         return;
       }
 
       const allAppointments = response.data.data || [];
-      console.log(
-        `Loaded ${allAppointments.length} appointments for patient ${patient.id}`,
-      );
 
       // Filtrar solo citas programadas y futuras
       const now = new Date();
@@ -90,7 +100,6 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
         .filter((apt: Appointment) => {
           try {
             if (!apt.date || !apt.time || !apt.status) {
-              console.log("Invalid appointment data:", apt);
               return false;
             }
             const aptDate = new Date(`${apt.date}T${apt.time}`);
@@ -164,257 +173,299 @@ const PatientDetail: React.FC<PatientDetailProps> = ({
   };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        {onBack && (
-          <TouchableOpacity style={styles.backButton} onPress={onBack}>
-            <Ionicons name="arrow-back" size={24} color="#007BFF" />
-          </TouchableOpacity>
-        )}
-        <View style={styles.headerContent}>
-          <Ionicons
-            name={getSpeciesIcon(patient.species)}
-            size={60}
-            color="#007BFF"
-          />
-          <Text style={styles.patientName}>{patient.name}</Text>
-          <Text style={styles.patientSpecies}>
-            {patient.species} - {patient.breed}
-          </Text>
-        </View>
-      </View>
-
-      {/* Basic Info */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Información Básica</Text>
-
-        <View style={styles.infoGrid}>
-          <View style={styles.infoCard}>
-            <Ionicons name="calendar-outline" size={24} color="#007BFF" />
-            <Text style={styles.infoLabel}>Edad</Text>
-            <Text style={styles.infoValue}>
-              {calculateAge(patient.birthdate)}
-            </Text>
-          </View>
-
-          <View style={styles.infoCard}>
-            <Ionicons name="scale-outline" size={24} color="#007BFF" />
-            <Text style={styles.infoLabel}>Peso</Text>
-            <Text style={styles.infoValue}>{patient.weight} kg</Text>
-          </View>
-        </View>
-
-        <View style={styles.infoGrid}>
-          <View style={styles.infoCard}>
-            <Ionicons
-              name={
-                patient.gender?.toLowerCase() === "macho" ||
-                patient.gender?.toLowerCase() === "male"
-                  ? "male"
-                  : "female"
-              }
-              size={24}
-              color={
-                patient.gender?.toLowerCase() === "macho" ||
-                patient.gender?.toLowerCase() === "male"
-                  ? "#007BFF"
-                  : "#e91e63"
-              }
-            />
-            <Text style={styles.infoLabel}>Sexo</Text>
-            <Text style={styles.infoValue}>
-              {patient.gender?.toLowerCase() === "macho" ||
-              patient.gender?.toLowerCase() === "male"
-                ? "Macho"
-                : "Hembra"}
-            </Text>
-          </View>
-
-          <View style={styles.infoCard}>
-            <Ionicons name="color-palette-outline" size={24} color="#007BFF" />
-            <Text style={styles.infoLabel}>Color</Text>
-            <Text style={styles.infoValue}>{patient.color}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Detailed Info */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Detalles</Text>
-
-        <View style={styles.detailRow}>
-          <Ionicons name="gift-outline" size={20} color="#666" />
-          <Text style={styles.detailLabel}>Fecha de nacimiento:</Text>
-          <Text style={styles.detailValue}>
-            {formatDate(patient.birthdate)}
-          </Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Ionicons
-            name={
-              patient.status?.toLowerCase() === "activo" ||
-              patient.status?.toLowerCase() === "active"
-                ? "checkmark-circle"
-                : "close-circle"
-            }
-            size={20}
-            color={
-              patient.status?.toLowerCase() === "activo" ||
-              patient.status?.toLowerCase() === "active"
-                ? "#28a745"
-                : "#dc3545"
-            }
-          />
-          <Text style={styles.detailLabel}>Estado:</Text>
-          <Text
-            style={[
-              styles.detailValue,
-              {
-                color:
-                  patient.status?.toLowerCase() === "activo" ||
-                  patient.status?.toLowerCase() === "active"
-                    ? "#28a745"
-                    : "#dc3545",
-              },
-            ]}
-          >
-            {patient.status?.toLowerCase() === "activo" ||
-            patient.status?.toLowerCase() === "active"
-              ? "Activo"
-              : "Inactivo"}
-          </Text>
-        </View>
-
-        <View style={styles.detailRow}>
-          <Ionicons name="time-outline" size={20} color="#666" />
-          <Text style={styles.detailLabel}>Registrado:</Text>
-          <Text style={styles.detailValue}>
-            {formatDate(patient.created_date)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Allergies Section */}
-      {patient.allergies && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Alergias y Condiciones</Text>
-          <View style={styles.allergiesContainer}>
-            <Ionicons name="warning" size={20} color="#ffc107" />
-            <Text style={styles.allergiesText}>{patient.allergies}</Text>
-          </View>
-        </View>
-      )}
-
-      {/* Upcoming Appointments Section */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Citas Próximas</Text>
-        {loadingAppointments ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color="#007BFF" />
-            <Text style={styles.loadingText}>Cargando citas...</Text>
-          </View>
-        ) : appointments.length > 0 ? (
-          appointments.map((apt) => (
-            <View key={apt.id} style={styles.appointmentCard}>
-              <View style={styles.appointmentHeader}>
-                <View style={styles.appointmentDateBadge}>
-                  <Ionicons name="calendar-outline" size={16} color="#fff" />
-                  <Text style={styles.appointmentDateText}>
-                    {(() => {
-                      // Evitar conversión de zona horaria
-                      const [year, month, day] = apt.date
-                        .split("T")[0]
-                        .split("-");
-                      const date = new Date(
-                        parseInt(year),
-                        parseInt(month) - 1,
-                        parseInt(day),
-                      );
-                      return date.toLocaleDateString("es-ES", {
-                        day: "numeric",
-                        month: "short",
-                      });
-                    })()}
-                  </Text>
-                </View>
-                <View style={styles.appointmentTypeBadge}>
-                  <Text style={styles.appointmentTypeText}>{apt.type}</Text>
-                </View>
-              </View>
-              <View style={styles.appointmentBody}>
-                <View style={styles.appointmentRow}>
-                  <Ionicons name="time-outline" size={16} color="#666" />
-                  <Text style={styles.appointmentDetail}>{apt.time}</Text>
-                </View>
-                <View style={styles.appointmentRow}>
-                  <Ionicons name="person-outline" size={16} color="#666" />
-                  <Text style={styles.appointmentDetail}>
-                    Dr(a). {apt.veterinarian}
-                  </Text>
-                </View>
-                {apt.notes && (
-                  <View style={styles.appointmentRow}>
-                    <Ionicons
-                      name="document-text-outline"
-                      size={16}
-                      color="#666"
-                    />
-                    <Text style={styles.appointmentDetail} numberOfLines={2}>
-                      {apt.notes}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          ))
-        ) : (
-          <View style={styles.noAppointmentsContainer}>
-            <Ionicons name="calendar-outline" size={48} color="#ccc" />
-            <Text style={styles.noAppointmentsText}>
-              No hay citas programadas
-            </Text>
-            <Text style={styles.noAppointmentsSubtext}>
-              Agenda una cita para tu mascota
-            </Text>
-          </View>
-        )}
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.actions}>
-        {onBookAppointment && (
-          <TouchableOpacity
-            style={[styles.actionButton, styles.primaryButton]}
-            onPress={onBookAppointment}
-          >
-            <Ionicons name="calendar" size={20} color="#fff" />
-            <Text style={styles.primaryButtonText}>Agendar Cita</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={styles.secondaryActions}>
-          {onViewHistory && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.secondaryButton]}
-              onPress={onViewHistory}
-            >
-              <Ionicons
-                name="document-text-outline"
-                size={20}
-                color="#007BFF"
-              />
-              <Text style={styles.secondaryButtonText}>Historial</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          {onBack && (
+            <TouchableOpacity style={styles.backButton} onPress={onBack}>
+              <Ionicons name="arrow-back" size={24} color={themeColor} />
             </TouchableOpacity>
           )}
+          <View style={styles.headerContent}>
+            <Ionicons
+              name={getSpeciesIcon(patient.species)}
+              size={60}
+              color={themeColor}
+            />
+            <Text style={styles.patientName}>{patient.name}</Text>
+            <Text style={styles.patientSpecies}>
+              {patient.species} - {patient.breed}
+            </Text>
+          </View>
         </View>
-      </View>
-    </ScrollView>
+
+        {/* Basic Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Información Básica</Text>
+
+          <View style={styles.infoGrid}>
+            <View style={styles.infoCard}>
+              <Ionicons name="calendar-outline" size={24} color={themeColor} />
+              <Text style={styles.infoLabel}>Edad</Text>
+              <Text style={styles.infoValue}>
+                {calculateAge(patient.birthdate)}
+              </Text>
+            </View>
+
+            <View style={styles.infoCard}>
+              <Ionicons name="scale-outline" size={24} color={themeColor} />
+              <Text style={styles.infoLabel}>Peso</Text>
+              <Text style={styles.infoValue}>{patient.weight} kg</Text>
+            </View>
+          </View>
+
+          <View style={styles.infoGrid}>
+            <View style={styles.infoCard}>
+              <Ionicons
+                name={
+                  patient.gender?.toLowerCase() === "macho" ||
+                  patient.gender?.toLowerCase() === "male"
+                    ? "male"
+                    : "female"
+                }
+                size={24}
+                color={
+                  patient.gender?.toLowerCase() === "macho" ||
+                  patient.gender?.toLowerCase() === "male"
+                    ? themeColor
+                    : "#e91e63"
+                }
+              />
+              <Text style={styles.infoLabel}>Sexo</Text>
+              <Text style={styles.infoValue}>
+                {patient.gender?.toLowerCase() === "macho" ||
+                patient.gender?.toLowerCase() === "male"
+                  ? "Macho"
+                  : "Hembra"}
+              </Text>
+            </View>
+
+            <View style={styles.infoCard}>
+              <Ionicons
+                name="color-palette-outline"
+                size={24}
+                color={themeColor}
+              />
+              <Text style={styles.infoLabel}>Color</Text>
+              <Text style={styles.infoValue}>{patient.color}</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Detailed Info */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Detalles</Text>
+
+          <View style={styles.detailRow}>
+            <Ionicons name="gift-outline" size={20} color="#666" />
+            <Text style={styles.detailLabel}>Fecha de nacimiento:</Text>
+            <Text style={styles.detailValue}>
+              {formatDate(patient.birthdate)}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Ionicons
+              name={
+                patient.status?.toLowerCase() === "activo" ||
+                patient.status?.toLowerCase() === "active"
+                  ? "checkmark-circle"
+                  : "close-circle"
+              }
+              size={20}
+              color={
+                patient.status?.toLowerCase() === "activo" ||
+                patient.status?.toLowerCase() === "active"
+                  ? "#28a745"
+                  : "#dc3545"
+              }
+            />
+            <Text style={styles.detailLabel}>Estado:</Text>
+            <Text
+              style={[
+                styles.detailValue,
+                {
+                  color:
+                    patient.status?.toLowerCase() === "activo" ||
+                    patient.status?.toLowerCase() === "active"
+                      ? "#28a745"
+                      : "#dc3545",
+                },
+              ]}
+            >
+              {patient.status?.toLowerCase() === "activo" ||
+              patient.status?.toLowerCase() === "active"
+                ? "Activo"
+                : "Inactivo"}
+            </Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Ionicons name="time-outline" size={20} color="#666" />
+            <Text style={styles.detailLabel}>Registrado:</Text>
+            <Text style={styles.detailValue}>
+              {formatDate(patient.created_date)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Allergies Section */}
+        {patient.allergies && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Alergias y Condiciones</Text>
+            <View style={styles.allergiesContainer}>
+              <Ionicons name="warning" size={20} color="#ffc107" />
+              <Text style={styles.allergiesText}>{patient.allergies}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Upcoming Appointments Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Citas Próximas</Text>
+          {loadingAppointments ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={themeColor} />
+              <Text style={styles.loadingText}>Cargando citas...</Text>
+            </View>
+          ) : appointments.length > 0 ? (
+            appointments.map((apt) => (
+              <View key={apt.id} style={styles.appointmentCard}>
+                <View style={styles.appointmentHeader}>
+                  <View
+                    style={[
+                      styles.appointmentDateBadge,
+                      { backgroundColor: themeColor },
+                    ]}
+                  >
+                    <Ionicons name="calendar-outline" size={16} color="#fff" />
+                    <Text style={styles.appointmentDateText}>
+                      {(() => {
+                        // Evitar conversión de zona horaria
+                        const [year, month, day] = apt.date
+                          .split("T")[0]
+                          .split("-");
+                        const date = new Date(
+                          parseInt(year),
+                          parseInt(month) - 1,
+                          parseInt(day),
+                        );
+                        return date.toLocaleDateString("es-ES", {
+                          day: "numeric",
+                          month: "short",
+                        });
+                      })()}
+                    </Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.appointmentTypeBadge,
+                      {
+                        backgroundColor: `${getAppointmentTypeColor(apt.type)}20`,
+                        borderColor: getAppointmentTypeColor(apt.type),
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.appointmentTypeText,
+                        { color: getAppointmentTypeColor(apt.type) },
+                      ]}
+                    >
+                      {apt.type}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.appointmentBody}>
+                  <View style={styles.appointmentRow}>
+                    <Ionicons name="time-outline" size={16} color="#666" />
+                    <Text style={styles.appointmentDetail}>{apt.time}</Text>
+                  </View>
+                  <View style={styles.appointmentRow}>
+                    <Ionicons name="person-outline" size={16} color="#666" />
+                    <Text style={styles.appointmentDetail}>
+                      Dr(a). {apt.veterinarian}
+                    </Text>
+                  </View>
+                  {apt.notes && (
+                    <View style={styles.appointmentRow}>
+                      <Ionicons
+                        name="document-text-outline"
+                        size={16}
+                        color="#666"
+                      />
+                      <Text style={styles.appointmentDetail} numberOfLines={2}>
+                        {apt.notes}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.noAppointmentsContainer}>
+              <Ionicons name="calendar-outline" size={48} color="#ccc" />
+              <Text style={styles.noAppointmentsText}>
+                No hay citas programadas
+              </Text>
+              <Text style={styles.noAppointmentsSubtext}>
+                Agenda una cita para tu mascota
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actions}>
+          {onBookAppointment && (
+            <TouchableOpacity
+              style={[
+                styles.actionButton,
+                styles.primaryButton,
+                { backgroundColor: themeColor },
+              ]}
+              onPress={onBookAppointment}
+            >
+              <Ionicons name="calendar" size={20} color="#fff" />
+              <Text style={styles.primaryButtonText}>Agendar Cita</Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={styles.secondaryActions}>
+            {onViewHistory && (
+              <TouchableOpacity
+                style={[
+                  styles.actionButton,
+                  styles.secondaryButton,
+                  { borderColor: themeColor },
+                ]}
+                onPress={onViewHistory}
+              >
+                <Ionicons
+                  name="document-text-outline"
+                  size={20}
+                  color={themeColor}
+                />
+                <Text
+                  style={[styles.secondaryButtonText, { color: themeColor }]}
+                >
+                  Historial
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: "#f8f9fa",
+  },
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
@@ -427,7 +478,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "#e9ecef",
   },
   backButton: {
-    marginTop: 10,
     marginBottom: 10,
   },
   headerContent: {
@@ -530,7 +580,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   primaryButton: {
-    backgroundColor: "#007BFF",
+    // backgroundColor aplicado dinámicamente con themeColor
   },
   primaryButtonText: {
     color: "#fff",
@@ -545,12 +595,10 @@ const styles = StyleSheet.create({
   secondaryButton: {
     backgroundColor: "#fff",
     borderWidth: 2,
-    borderColor: "#007BFF",
     flex: 1,
     marginHorizontal: 4,
   },
   secondaryButtonText: {
-    color: "#007BFF",
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
@@ -572,7 +620,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
-    borderLeftColor: "#007BFF",
+    borderLeftColor: "#dee2e6",
   },
   appointmentHeader: {
     flexDirection: "row",
@@ -583,7 +631,6 @@ const styles = StyleSheet.create({
   appointmentDateBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#007BFF",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -596,15 +643,12 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
   appointmentTypeBadge: {
-    backgroundColor: "#fff",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#007BFF",
   },
   appointmentTypeText: {
-    color: "#007BFF",
     fontSize: 12,
     fontWeight: "600",
   },
